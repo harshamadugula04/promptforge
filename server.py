@@ -140,7 +140,41 @@ def detect_intent(prompt: str, has_rag_doc: bool = False) -> str:
         return "text"
 
 # ── RAG IN-MEMORY STORE ────────────────────────────────────────────────────────
-rag_store = {}  # { doc_id: { "chunks": [], "embeddings": [], "filename": "", "type": "text"|"image" } }
+# RAG store — uses /tmp for persistence across gunicorn worker reloads
+import pickle, pathlib
+
+RAG_DIR = pathlib.Path("/tmp/rag_store")
+RAG_DIR.mkdir(exist_ok=True)
+
+rag_store = {}  # in-memory cache
+
+def _rag_path(doc_id):
+    return RAG_DIR / f"{doc_id}.pkl"
+
+def rag_save(doc_id, doc):
+    """Save doc to memory + disk."""
+    rag_store[doc_id] = doc
+    try:
+        with open(_rag_path(doc_id), "wb") as f:
+            pickle.dump(doc, f)
+    except Exception as e:
+        print(f"[RAG] disk save failed: {e}")
+
+def rag_get(doc_id):
+    """Get doc from memory, fall back to disk."""
+    if doc_id in rag_store:
+        return rag_store[doc_id]
+    path = _rag_path(doc_id)
+    if path.exists():
+        try:
+            with open(path, "rb") as f:
+                doc = pickle.load(f)
+            rag_store[doc_id] = doc  # cache in memory
+            print(f"[RAG] Loaded doc_id={doc_id} from disk")
+            return doc
+        except Exception as e:
+            print(f"[RAG] disk load failed: {e}")
+    return None
 
 # ── CHUNKING ────────────────────────────────────────────────────────────────────
 def clean_text(text: str) -> str:
@@ -272,9 +306,9 @@ def retrieve_chunks(query: str, doc_id: str, top_k: int = 6) -> list:
     2. Keyword overlap bonus (exact match boost)
     Combined score = 0.7 * cosine + 0.3 * keyword_overlap
     """
-    if doc_id not in rag_store:
+    doc = rag_get(doc_id)
+    if not doc:
         return []
-    doc   = rag_store[doc_id]
     if doc.get("type") == "image":
         return []  # images handled separately
 
@@ -384,13 +418,13 @@ def rag_upload():
             emb_data    = embed_chunks(chunks)
             import hashlib
             doc_id = doc_id or hashlib.md5(img_data[:100].encode()).hexdigest()[:12]
-            rag_store[doc_id] = {
+            rag_save(doc_id, {
                 "chunks": chunks, "emb_data": emb_data,
                 "filename": filename, "type": "image",
                 "description": description[:500],
                 "image_base64": img_data,
                 "mime": img_mime,
-            }
+            })
             print(f"[RAG] Image '{filename}': {len(chunks)} chunks from vision description, doc_id={doc_id}")
             return jsonify({"doc_id": doc_id, "chunks": len(chunks), "filename": filename, "type": "image"})
 
@@ -403,10 +437,10 @@ def rag_upload():
         emb_data = embed_chunks(chunks)
         import hashlib
         doc_id = doc_id or hashlib.md5(text[:200].encode()).hexdigest()[:12]
-        rag_store[doc_id] = {
+        rag_save(doc_id, {
             "chunks": chunks, "emb_data": emb_data,
             "filename": filename, "type": "text"
-        }
+        })
         avg_words = sum(len(c.split()) for c in chunks) // max(len(chunks), 1)
         print(f"[RAG] Stored '{filename}': {len(chunks)} chunks, ~{avg_words} words/chunk, doc_id={doc_id}")
         for i, c in enumerate(chunks[:3]):
@@ -563,8 +597,8 @@ def messages():
         # Intent already correctly classified by LLM in /v1/detect — no override needed
 
         # ── RAG CONTEXT INJECTION ───────────────────────────────────────────
-        if doc_id and doc_id in rag_store:
-            doc        = rag_store[doc_id]
+        doc = rag_get(doc_id) if doc_id else None
+        if doc_id and doc:
             # Extract user query text safely — content may be str or list
             last_content = msgs[-1]["content"] if msgs else ""
             if isinstance(last_content, list):
@@ -900,7 +934,7 @@ def optimize():
         groq_msgs = [{"role": "user", "content": prompt_text}]
         sys = system_prompt
         # Inject RAG if active
-        if doc_id and doc_id in rag_store:
+        if doc_id and rag_get(doc_id):
             retrieved = retrieve_chunks(prompt_text, doc_id, top_k=4)
             if retrieved:
                 sys += "\n\nCONTEXT:\n" + "\n---\n".join(retrieved)
