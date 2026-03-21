@@ -255,7 +255,9 @@ function AppInner() {
     setFormatted(formatted);
 
     const finalResponses = {};
-    await Promise.all(selectedTechniques.map(async id => {
+    await Promise.all(selectedTechniques.map(async (id, index) => {
+      // Small stagger when RAG doc active to avoid race conditions
+      if (ragDoc && index > 0) await new Promise(r => setTimeout(r, index * 300));
       try {
         const { text, type, tokens } = await callAPI({
           formattedPrompt: formatted[id], systemPrompt: getSystem(id),
@@ -391,11 +393,13 @@ function AppInner() {
         .markdown-body blockquote{border-left:3px solid ${t.accent};padding-left:14px;color:${t.textMuted};margin:10px 0;font-style:italic;}
         nav::-webkit-scrollbar{display:none;}
         @media(max-width:768px){
-          .tab-label{display:none;}
-          .pf-run{padding:7px 14px!important;font-size:12px!important;}
+          .tab-label{display:none!important;}
+          .layout-switcher{display:none!important;}
+          .pf-run{padding:7px 12px!important;font-size:12px!important;}
         }
         @media(max-width:480px){
-          nav button{padding:5px 6px!important;}
+          nav button{padding:4px 5px!important;}
+          nav{gap:1px!important;}
         }
         /* Fix blank space on mobile scroll */
         main > div { min-height: 0; }
