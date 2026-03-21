@@ -272,7 +272,7 @@ function UnifiedCard({ technique, response, responseType, isLoading, error, form
   const isSparse = layout === "equal" && maxWords > 0 && words / maxWords < 0.4 && response && !isLoading && (type === "text" || type === "code");
 
   return (
-    <div className="pf-card" style={{ background: t.surface, border: `1px solid ${isTop ? "#00e5a0" : t.border}`, borderRadius: "14px", overflow: "hidden", display: "flex", flexDirection: "column", minWidth: 0, boxShadow: isTop ? "0 0 0 2px #00e5a022, 0 4px 20px #00e5a011" : "0 1px 4px rgba(0,0,0,0.06)", ...(layout === "equal" ? { height: `${cardHeight}px` } : {}) }}>
+    <div className="pf-card" style={{ background: t.surface, border: `1px solid ${isTop ? "#00e5a0" : t.border}`, borderRadius: "14px", overflow: "hidden", display: "flex", flexDirection: "column", minWidth: 0, boxShadow: isTop ? "0 0 0 2px #00e5a022, 0 4px 20px #00e5a011" : "0 1px 4px rgba(0,0,0,0.06)", ...(layout === "equal" && window.innerWidth > 640 ? { height: `${cardHeight}px` } : {}) }}>
       <div style={{ padding: "10px 14px", borderBottom: `1px solid ${t.border}`, display: "flex", alignItems: "center", gap: "8px", background: t.surface2, flexShrink: 0 }}>
         <div style={{ width: "24px", height: "24px", borderRadius: "6px", background: `${tech.color || "#6366f1"}18`, border: `1px solid ${tech.color || "#6366f1"}30`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "13px", flexShrink: 0 }}>{tech.icon}</div>
         <span style={{ fontFamily: "'Syne', sans-serif", color: t.text, fontWeight: 600, fontSize: "12px" }}>{tech.label}</span>

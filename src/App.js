@@ -390,14 +390,16 @@ function AppInner() {
         .markdown-body strong{font-weight:700;}
         .markdown-body blockquote{border-left:3px solid ${t.accent};padding-left:14px;color:${t.textMuted};margin:10px 0;font-style:italic;}
         nav::-webkit-scrollbar{display:none;}
-        @media(max-width:640px){
-          header{padding:0 12px!important;}
-          nav button span:first-child{display:none;}
+        @media(max-width:768px){
+          .tab-label{display:none;}
           .pf-run{padding:7px 14px!important;font-size:12px!important;}
         }
         @media(max-width:480px){
-          nav button{padding:5px 8px!important;font-size:11px!important;}
+          nav button{padding:5px 6px!important;}
         }
+        /* Fix blank space on mobile scroll */
+        main > div { min-height: 0; }
+        .pf-response-grid { min-height: 0; }
       `}</style>
 
       {/* Toast */}
@@ -408,7 +410,7 @@ function AppInner() {
       )}
 
       {/* Header */}
-      <header style={{ height:"56px", borderBottom:`1px solid ${t.border}`, padding:"0 20px", display:"flex", alignItems:"center", gap:"14px", background:t.surface, position:"sticky", top:0, zIndex:100 }}>
+      <header style={{ height:"56px", borderBottom:`1px solid ${t.border}`, padding:"0 12px", display:"flex", alignItems:"center", gap:"8px", background:t.surface, position:"sticky", top:0, zIndex:100, overflow:"hidden" }}>
         {/* Sidebar toggle */}
         <button className="pf-btn" onClick={()=>setSidebarOpen(o=>!o)} style={{ width:"34px", height:"34px", display:"flex", alignItems:"center", justifyContent:"center", background:sidebarOpen?t.accentBg:"transparent", border:`1px solid ${sidebarOpen?t.accentBorder:t.border}`, borderRadius:"9px", cursor:"pointer", color:sidebarOpen?t.accent:t.textMuted, fontSize:"16px", flexShrink:0 }}>☰</button>
 
@@ -424,9 +426,9 @@ function AppInner() {
         {/* Tabs */}
         <nav style={{ display:"flex", gap:"2px", marginLeft:"8px", overflowX:"auto", WebkitOverflowScrolling:"touch", scrollbarWidth:"none" }}>
           {TABS.map(tab => (
-            <button key={tab.id} onClick={()=>setActiveTab(tab.id)} style={{ padding:"6px 13px", background:activeTab===tab.id?t.accentBg:"transparent", border:`1px solid ${activeTab===tab.id?t.accentBorder:"transparent"}`, borderRadius:"9px", color:activeTab===tab.id?t.accent:t.textMuted, fontSize:"12px", cursor:"pointer", fontWeight:activeTab===tab.id?700:400, whiteSpace:"nowrap", display:"flex", alignItems:"center", gap:"6px", fontFamily:"'Syne',sans-serif", transition:"all 0.16s" }}>
-              <span style={{ fontSize:"11px" }}>{tab.icon}</span>
-              {tab.label}
+            <button key={tab.id} onClick={()=>setActiveTab(tab.id)} style={{ padding:"6px 8px", background:activeTab===tab.id?t.accentBg:"transparent", border:`1px solid ${activeTab===tab.id?t.accentBorder:"transparent"}`, borderRadius:"9px", color:activeTab===tab.id?t.accent:t.textMuted, fontSize:"12px", cursor:"pointer", fontWeight:activeTab===tab.id?700:400, whiteSpace:"nowrap", display:"flex", alignItems:"center", gap:"4px", fontFamily:"'Syne',sans-serif", transition:"all 0.16s", flexShrink:0 }}>
+              <span style={{ fontSize:"13px" }}>{tab.icon}</span>
+              <span className="tab-label">{tab.label}</span>
               {tab.badge > 0 && <span style={{ fontSize:"9px", background:t.accent, color:"#fff", borderRadius:"9px", padding:"1px 5px", fontFamily:"monospace", fontWeight:700, lineHeight:"15px" }}>{tab.badge}</span>}
             </button>
           ))}
@@ -458,6 +460,8 @@ function AppInner() {
 
       {/* Body */}
       <div style={{ display:"flex", height:"calc(100vh - 56px)", overflow:"hidden", position:"relative" }}>
+        {/* Mobile overlay backdrop */}
+        {sidebarOpen && <div onClick={()=>setSidebarOpen(false)} style={{ display: typeof window !== "undefined" && window.innerWidth < 768 ? "block" : "none", position:"fixed", inset:0, background:"rgba(0,0,0,0.4)", zIndex:90, top:"56px" }} />}
         <Sidebar open={sidebarOpen} selectedTechniques={selectedTechniques} onToggleTechnique={toggleTechnique} onSelectAll={selectAll} onClearAll={clearAll} temperature={temperature} setTemperature={setTemperature} maxTokens={maxTokens} setMaxTokens={setMaxTokens} role={role} setRole={setRole} examples={examples} setExamples={setExamples} showFormatted={showFormatted} setShowFormatted={setShowFormatted} customInstructions={customInstructions} setCustomInstructions={setCustomInstructions} customSystem={customSystem} setCustomSystem={setCustomSystem} ragDoc={ragDoc} setRagDoc={setRagDoc} model={model} setModel={setModel} t={t} />
 
         <main style={{ flex:1, overflowY:"auto", padding:activeTab==="playground" ? "clamp(12px,2vw,20px)" : "0", display:"flex", flexDirection:"column", gap:"16px", minWidth:0 }}>

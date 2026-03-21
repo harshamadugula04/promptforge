@@ -20,18 +20,30 @@ export default function Sidebar({ open, selectedTechniques, onToggleTechnique, o
     setExamples(next);
   };
 
+  const isMobile = typeof window !== "undefined" && window.innerWidth < 768;
+
   return (
     <aside style={{
       width: open ? "260px" : "0",
-      minWidth: open ? "260px" : "0",
+      minWidth: isMobile ? 0 : (open ? "260px" : "0"),
       flexShrink: 0,
       borderRight: open ? `1px solid ${t.border}` : "none",
       overflowY: open ? "auto" : "hidden",
       overflowX: "hidden",
       background: t.surface,
-      height: "100%",
+      height: isMobile ? "calc(100vh - 56px)" : "100%",
       transition: "all 0.22s cubic-bezier(0.4,0,0.2,1)",
       opacity: open ? 1 : 0,
+      // On mobile: overlay fixed position
+      ...(isMobile ? {
+        position: "fixed",
+        top: "56px",
+        left: 0,
+        zIndex: 95,
+        width: open ? "80vw" : "0",
+        maxWidth: "300px",
+        boxShadow: open ? "4px 0 24px rgba(0,0,0,0.2)" : "none",
+      } : {}),
     }}>
       <div style={{ paddingTop: "16px" }}>
 
