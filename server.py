@@ -11,7 +11,18 @@ except ImportError:
     pass  # dotenv not installed — use system env vars (production)
 
 app = Flask(__name__)
-CORS(app, origins="*")
+CORS(app, 
+     origins="*",
+     allow_headers=["Content-Type", "Authorization"],
+     methods=["GET", "POST", "OPTIONS"],
+     supports_credentials=False)
+
+@app.after_request
+def after_request(response):
+    response.headers.add("Access-Control-Allow-Origin", "*")
+    response.headers.add("Access-Control-Allow-Headers", "Content-Type,Authorization")
+    response.headers.add("Access-Control-Allow-Methods", "GET,POST,OPTIONS")
+    return response
 
 # Load from environment — set these in Railway/Netlify dashboard
 API_KEY  = os.environ.get("GROQ_API_KEY", "")
