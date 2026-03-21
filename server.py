@@ -19,10 +19,23 @@ CORS(app,
 
 @app.after_request
 def after_request(response):
-    response.headers.add("Access-Control-Allow-Origin", "*")
-    response.headers.add("Access-Control-Allow-Headers", "Content-Type,Authorization")
-    response.headers.add("Access-Control-Allow-Methods", "GET,POST,OPTIONS")
+    response.headers["Access-Control-Allow-Origin"] = "*"
+    response.headers["Access-Control-Allow-Headers"] = "Content-Type,Authorization,Accept"
+    response.headers["Access-Control-Allow-Methods"] = "GET,POST,OPTIONS"
+    response.headers["Access-Control-Max-Age"] = "3600"
     return response
+
+@app.route("/", methods=["GET"])
+def health():
+    return jsonify({"status": "ok", "service": "PromptForge API"})
+
+@app.route("/<path:path>", methods=["OPTIONS"])
+def options_handler(path):
+    response = jsonify({})
+    response.headers["Access-Control-Allow-Origin"] = "*"
+    response.headers["Access-Control-Allow-Headers"] = "Content-Type,Authorization,Accept"
+    response.headers["Access-Control-Allow-Methods"] = "GET,POST,OPTIONS"
+    return response, 200
 
 # Load from environment — set these in Railway/Netlify dashboard
 API_KEY  = os.environ.get("GROQ_API_KEY", "")
@@ -552,20 +565,25 @@ def messages():
         # ── RAG CONTEXT INJECTION ───────────────────────────────────────────
         if doc_id and doc_id in rag_store:
             doc        = rag_store[doc_id]
-            user_query = msgs[-1]["content"] if msgs else ""
+            # Extract user query text safely — content may be str or list
+            last_content = msgs[-1]["content"] if msgs else ""
+            if isinstance(last_content, list):
+                user_query = " ".join(p.get("text","") for p in last_content if p.get("type")=="text")
+            else:
+                user_query = last_content
 
             # For IMAGE docs: inject image directly into the conversation + use description as context
             if doc.get("type") == "image" and doc.get("image_base64"):
                 img_b64  = doc["image_base64"]
                 img_mime = doc.get("mime", "image/jpeg")
-                # Replace last text message with multimodal message
+                # Replace last text message with multimodal message (only if not already multimodal)
                 if msgs and isinstance(msgs[-1].get("content"), str):
                     msgs[-1]["content"] = [
                         {"type": "image_url", "image_url": {"url": f"data:{img_mime};base64,{img_b64}"}},
                         {"type": "text", "text": msgs[-1]["content"]}
                     ]
                 system_prompt = system_prompt + "\n\nThe user has uploaded an image. You can see it directly. Answer questions about it thoroughly."
-                print(f"[RAG] Injected image directly into conversation for doc_id={doc_id}")
+                print(f"[RAG] Injected image for doc_id={doc_id}, technique context applied")
 
             # For TEXT docs (and image fallback): inject retrieved chunks
             retrieved = retrieve_chunks(user_query, doc_id, top_k=6)

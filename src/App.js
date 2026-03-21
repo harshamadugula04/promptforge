@@ -395,11 +395,11 @@ function AppInner() {
         @media(max-width:768px){
           .tab-label{display:none!important;}
           .layout-switcher{display:none!important;}
+          .logo-text{display:none!important;}
           .pf-run{padding:7px 12px!important;font-size:12px!important;}
         }
         @media(max-width:480px){
           nav button{padding:4px 5px!important;}
-          nav{gap:1px!important;}
         }
         /* Fix blank space on mobile scroll */
         main > div { min-height: 0; }
@@ -413,53 +413,47 @@ function AppInner() {
         </div>
       )}
 
-      {/* Header */}
-      <header style={{ height:"56px", borderBottom:`1px solid ${t.border}`, padding:"0 12px", display:"flex", alignItems:"center", gap:"8px", background:t.surface, position:"sticky", top:0, zIndex:100, overflow:"hidden" }}>
+      {/* Header — mobile first: hamburger | logo | [theme] | [export] | tabs scroll */}
+      <header style={{ height:"56px", borderBottom:`1px solid ${t.border}`, padding:"0 10px", display:"flex", alignItems:"center", gap:"6px", background:t.surface, position:"sticky", top:0, zIndex:100 }}>
+
         {/* Sidebar toggle */}
-        <button className="pf-btn" onClick={()=>setSidebarOpen(o=>!o)} style={{ width:"34px", height:"34px", display:"flex", alignItems:"center", justifyContent:"center", background:sidebarOpen?t.accentBg:"transparent", border:`1px solid ${sidebarOpen?t.accentBorder:t.border}`, borderRadius:"9px", cursor:"pointer", color:sidebarOpen?t.accent:t.textMuted, fontSize:"16px", flexShrink:0 }}>☰</button>
+        <button className="pf-btn" onClick={()=>setSidebarOpen(o=>!o)} style={{ width:"32px", height:"32px", flexShrink:0, display:"flex", alignItems:"center", justifyContent:"center", background:sidebarOpen?t.accentBg:"transparent", border:`1px solid ${sidebarOpen?t.accentBorder:t.border}`, borderRadius:"8px", cursor:"pointer", color:sidebarOpen?t.accent:t.textMuted, fontSize:"15px" }}>☰</button>
 
-        {/* Logo */}
-        <div style={{ display:"flex", alignItems:"center", gap:"9px", flexShrink:0 }}>
-          <div style={{ width:"32px", height:"32px", background:t.accent, borderRadius:"10px", display:"flex", alignItems:"center", justifyContent:"center", fontSize:"15px", color:"#fff", fontWeight:800, boxShadow:`0 2px 12px ${t.accent}55` }}>P</div>
-          <div style={{ display:"flex", flexDirection:"column", lineHeight:1 }}>
-            <span style={{ fontWeight:800, fontSize:"15px", letterSpacing:"-0.02em" }}>PromptForge</span>
-            <span style={{ fontSize:"10px", color:t.accent, fontFamily:"'JetBrains Mono',monospace", letterSpacing:"0.02em" }}>v2.0</span>
+        {/* Logo icon only on mobile */}
+        <div style={{ width:"30px", height:"30px", flexShrink:0, background:t.accent, borderRadius:"9px", display:"flex", alignItems:"center", justifyContent:"center", fontSize:"14px", color:"#fff", fontWeight:800, boxShadow:`0 2px 10px ${t.accent}55` }}>P</div>
+        <span className="logo-text" style={{ fontWeight:800, fontSize:"14px", letterSpacing:"-0.02em", flexShrink:0 }}>PromptForge</span>
+
+        {/* Theme toggle — always visible, right after logo */}
+        <button className="pf-btn" onClick={toggle} style={{ width:"30px", height:"30px", flexShrink:0, display:"flex", alignItems:"center", justifyContent:"center", background:"transparent", border:`1px solid ${t.border}`, borderRadius:"8px", cursor:"pointer", color:t.textMuted, fontSize:"13px" }}>
+          {dark?"☀":"☾"}
+        </button>
+
+        {/* Export — icon only */}
+        {hasOutput && Object.keys(responses).length > 0 && (
+          <button className="pf-btn" onClick={exportResponses} title="Export as Markdown" style={{ width:"30px", height:"30px", flexShrink:0, display:"flex", alignItems:"center", justifyContent:"center", background:t.surface2, border:`1px solid ${t.border}`, borderRadius:"8px", color:t.textMuted, fontSize:"13px", cursor:"pointer" }}>↓</button>
+        )}
+
+        {/* Layout switcher — hidden on mobile via CSS */}
+        {activeTab==="playground" && (
+          <div className="layout-switcher" style={{ display:"flex", flexShrink:0, gap:"2px", background:t.surface2, border:`1px solid ${t.border}`, borderRadius:"8px", padding:"2px" }}>
+            {LAYOUTS.map(l=>(
+              <button key={l.id} onClick={()=>setLayout(l.id)} title={l.id} style={{ width:"24px", height:"22px", background:layout===l.id?t.accent:"transparent", border:"none", borderRadius:"4px", color:layout===l.id?"#fff":t.textMuted, fontSize:"11px", cursor:"pointer", transition:"all 0.15s", display:"flex", alignItems:"center", justifyContent:"center" }}>
+                {l.icon}
+              </button>
+            ))}
           </div>
-        </div>
+        )}
 
-        {/* Tabs */}
-        <nav style={{ display:"flex", gap:"2px", marginLeft:"8px", overflowX:"auto", WebkitOverflowScrolling:"touch", scrollbarWidth:"none" }}>
+        {/* Tabs — scrollable, takes remaining space */}
+        <nav style={{ display:"flex", gap:"2px", flex:1, overflowX:"auto", WebkitOverflowScrolling:"touch", scrollbarWidth:"none", minWidth:0 }}>
           {TABS.map(tab => (
-            <button key={tab.id} onClick={()=>setActiveTab(tab.id)} style={{ padding:"6px 8px", background:activeTab===tab.id?t.accentBg:"transparent", border:`1px solid ${activeTab===tab.id?t.accentBorder:"transparent"}`, borderRadius:"9px", color:activeTab===tab.id?t.accent:t.textMuted, fontSize:"12px", cursor:"pointer", fontWeight:activeTab===tab.id?700:400, whiteSpace:"nowrap", display:"flex", alignItems:"center", gap:"4px", fontFamily:"'Syne',sans-serif", transition:"all 0.16s", flexShrink:0 }}>
-              <span style={{ fontSize:"13px" }}>{tab.icon}</span>
+            <button key={tab.id} onClick={()=>setActiveTab(tab.id)} style={{ padding:"5px 8px", background:activeTab===tab.id?t.accentBg:"transparent", border:`1px solid ${activeTab===tab.id?t.accentBorder:"transparent"}`, borderRadius:"7px", color:activeTab===tab.id?t.accent:t.textMuted, fontSize:"11px", cursor:"pointer", fontWeight:activeTab===tab.id?700:400, whiteSpace:"nowrap", display:"flex", alignItems:"center", gap:"3px", fontFamily:"'Syne',sans-serif", transition:"all 0.16s", flexShrink:0 }}>
+              <span style={{ fontSize:"12px" }}>{tab.icon}</span>
               <span className="tab-label">{tab.label}</span>
-              {tab.badge > 0 && <span style={{ fontSize:"9px", background:t.accent, color:"#fff", borderRadius:"9px", padding:"1px 5px", fontFamily:"monospace", fontWeight:700, lineHeight:"15px" }}>{tab.badge}</span>}
+              {tab.badge > 0 && <span style={{ fontSize:"9px", background:t.accent, color:"#fff", borderRadius:"8px", padding:"1px 4px", fontFamily:"monospace", fontWeight:700, lineHeight:"14px" }}>{tab.badge}</span>}
             </button>
           ))}
         </nav>
-
-        <div style={{ marginLeft:"auto", display:"flex", alignItems:"center", gap:"6px", flexShrink:0 }}>
-          {/* Export button — only when there are responses */}
-          {hasOutput && Object.keys(responses).length > 0 && (
-            <button className="pf-btn" onClick={exportResponses} title="Export as Markdown" style={{ padding:"6px 12px", background:t.surface2, border:`1px solid ${t.border}`, borderRadius:"8px", color:t.textMuted, fontSize:"12px", cursor:"pointer", fontFamily:"monospace", display:"flex", alignItems:"center", gap:"5px" }}>
-              ↓ Export
-            </button>
-          )}
-          {/* Layout switcher */}
-          {activeTab==="playground" && (
-            <div style={{ display:"flex", gap:"2px", background:t.surface2, border:`1px solid ${t.border}`, borderRadius:"9px", padding:"3px" }}>
-              {LAYOUTS.map(l=>(
-                <button key={l.id} onClick={()=>setLayout(l.id)} title={l.id} style={{ width:"28px", height:"26px", background:layout===l.id?t.accent:"transparent", border:"none", borderRadius:"6px", color:layout===l.id?"#fff":t.textMuted, fontSize:"13px", cursor:"pointer", transition:"all 0.15s", display:"flex", alignItems:"center", justifyContent:"center" }}>
-                  {l.icon}
-                </button>
-              ))}
-            </div>
-          )}
-          {/* Theme toggle */}
-          <button className="pf-btn" onClick={toggle} style={{ width:"34px", height:"34px", display:"flex", alignItems:"center", justifyContent:"center", background:"transparent", border:`1px solid ${t.border}`, borderRadius:"9px", cursor:"pointer", color:t.textMuted, fontSize:"15px" }}>
-            {dark?"☀":"☾"}
-          </button>
-        </div>
       </header>
 
       {/* Body */}
