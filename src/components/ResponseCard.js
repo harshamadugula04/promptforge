@@ -207,16 +207,7 @@ function ScoreBar({ score, rank, totalRanked, t }) {
     </div>
   );
 
-  return null; // unreachable but satisfies linter
-              </div>
-              {reason && <div style={{ fontSize: "10px", color: t.textDimmer, marginTop: "2px", lineHeight: "1.4" }}>{reason}</div>}
-            </div>
-          ))}
-          {score.verdict && <div style={{ fontSize: "11px", color: t.textDim, marginTop: "8px", padding: "6px 8px", background: t.surface, borderRadius: "5px", fontStyle: "italic", lineHeight: "1.4" }}>"{score.verdict}"</div>}
-        </div>
-      )}
-    </div>
-  );
+  return null;
 }
 
 function CardFooter({ tech, t, words, copied, onCopy, readTime, tokens }) {
