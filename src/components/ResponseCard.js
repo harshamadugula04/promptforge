@@ -151,17 +151,8 @@ function ScoreBar({ score, rank, totalRanked, t }) {
     <div style={{ borderTop: `1px solid ${t.border}`, background: t.surface2 }}>
       {/* Summary row */}
       <div onClick={() => setShowDetail(v => !v)} style={{ padding: "8px 14px", cursor: "pointer", display: "flex", alignItems: "center", gap: "10px" }}>
-        <span style={{ fontSize: "10px", color: t.textMuted, fontFamily: "monospace", flexShrink: 0 }}>QUALITY</span>
-        {/* Dimension bars — no numbers */}
-        <div style={{ flex: 1, display: "flex", gap: "3px", alignItems: "center" }}>
-          {dims.map(({ key, label }) => (
-            <div key={key} style={{ flex: 1 }} title={`${label}: ${dimLabel(score[key])}`}>
-              <div style={{ height: "4px", background: t.border, borderRadius: "2px", overflow: "hidden" }}>
-                <div style={{ height: "100%", width: `${score[key]}%`, background: dimColor(score[key]), borderRadius: "2px", transition: "width 0.8s ease" }} />
-              </div>
-            </div>
-          ))}
-        </div>
+
+
         {/* Rank badge instead of number */}
         {rankInfo && (
           <div style={{ display: "flex", alignItems: "center", gap: "5px", flexShrink: 0 }}>
