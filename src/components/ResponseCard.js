@@ -206,8 +206,6 @@ function ScoreBar({ score, rank, totalRanked, t }) {
       )}
     </div>
   );
-
-  return null;
 }
 
 function CardFooter({ tech, t, words, copied, onCopy, readTime, tokens }) {
