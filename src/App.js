@@ -86,21 +86,29 @@ function AnalyticsPanel({ scores, tokenData, selectedTechniques, t }) {
           <div style={{ overflowX:"auto" }}>
             <table style={{ width:"100%", borderCollapse:"collapse", fontSize:"12px" }}>
               <thead><tr style={{ background:t.surface2 }}>
-                {["Technique","Relevance","Depth","Clarity","Accuracy","Technique✦","Overall","Tokens","Efficiency"].map(h => (
+                {["Technique","Relevance","Depth","Clarity","Accuracy","Technique✦","Rank","Tokens"].map(h => (
                   <th key={h} style={{ padding:"9px 14px", textAlign:h==="Technique"?"left":"center", color:t.textMuted, fontFamily:"monospace", fontWeight:500, fontSize:"11px" }}>{h}</th>
                 ))}
               </tr></thead>
               <tbody>
-                {chartData.map((d,i) => (
-                  <tr key={d.id} style={{ borderTop:`1px solid ${t.border}`, background:i===0?"#00e5a006":"transparent" }}>
-                    <td style={{ padding:"9px 14px", color:t.text, fontFamily:"monospace", fontWeight:i===0?600:400 }}>{i===0&&"★ "}{d.label}</td>
-                    {["relevance","depth","clarity","accuracy","technique_fidelity","overall"].map(k => (
-                      <td key={k} style={{ padding:"9px 14px", textAlign:"center", color:d[k]>0?sc(d[k]):t.textDim, fontFamily:"monospace" }}>{d[k]>0?d[k]:"—"}</td>
-                    ))}
-                    <td style={{ padding:"9px 14px", textAlign:"center", color:t.textMuted, fontFamily:"monospace" }}>{d.tokens>0?d.tokens.toLocaleString():"—"}</td>
-                    <td style={{ padding:"9px 14px", textAlign:"center", color:t.accent, fontFamily:"monospace" }}>{d.efficiency>0?d.efficiency:"—"}</td>
-                  </tr>
-                ))}
+                {chartData.map((d,i) => {
+                  const dimLabel = v => v >= 80 ? "Strong" : v >= 60 ? "Good" : v > 0 ? "Weak" : "—";
+                  const dimColor = v => v >= 80 ? "#00e5a0" : v >= 60 ? "#6366f1" : v > 0 ? "#f59e0b" : t.textDim;
+                  const rankLabel = i === 0 ? "Best" : i === chartData.length-1 ? "Weakest" : i === 1 ? "Good" : `#${i+1}`;
+                  const rankColor = i === 0 ? "#00e5a0" : i === chartData.length-1 ? "#f59e0b" : "#6366f1";
+                  return (
+                    <tr key={d.id} style={{ borderTop:`1px solid ${t.border}`, background:i===0?"#00e5a006":"transparent" }}>
+                      <td style={{ padding:"9px 14px", color:t.text, fontFamily:"monospace", fontWeight:i===0?600:400 }}>{i===0&&"★ "}{d.label}</td>
+                      {["relevance","depth","clarity","accuracy","technique_fidelity"].map(k => (
+                        <td key={k} style={{ padding:"9px 14px", textAlign:"center", color:dimColor(d[k]), fontFamily:"monospace", fontWeight:500, fontSize:"11px" }}>{dimLabel(d[k])}</td>
+                      ))}
+                      <td style={{ padding:"9px 14px", textAlign:"center" }}>
+                        <span style={{ fontSize:"11px", fontWeight:700, color:rankColor, background:`${rankColor}18`, border:`1px solid ${rankColor}40`, borderRadius:"5px", padding:"2px 8px", fontFamily:"'Syne',sans-serif" }}>{rankLabel}</span>
+                      </td>
+                      <td style={{ padding:"9px 14px", textAlign:"center", color:t.textMuted, fontFamily:"monospace" }}>{d.tokens>0?d.tokens.toLocaleString():"—"}</td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -130,7 +138,14 @@ function ResponseGrid({ layout, selectedTechniques, responses, responseTypes, lo
   useEffect(() => { if (layout==="accordion" && selectedTechniques.length>0) setExpanded(selectedTechniques[0]); }, [layout, selectedTechniques]);
 
   const maxWords = Math.max(...selectedTechniques.map(id => (responses[id]||"").replace(/[#*`]/g,"").split(/\s+/).filter(Boolean).length), 1);
-  const cardProps = id => ({ technique:id, response:responses[id], responseType:responseTypes[id], isLoading:loading[id], error:errors[id], formattedPrompt:formattedPrompts[id], showFormatted, tokens:tokenData?.[id], score:scores?.[id], isTop:topTechnique===id });
+
+  // Compute rankings based on scores — relative within this run only
+  const scoredIds = selectedTechniques.filter(id => scores?.[id]?.overall);
+  const ranked = [...scoredIds].sort((a, b) => (scores[b].overall || 0) - (scores[a].overall || 0));
+  const totalRanked = ranked.length;
+  const getRank = id => ranked.indexOf(id) + 1 || null;
+
+  const cardProps = id => ({ technique:id, response:responses[id], responseType:responseTypes[id], isLoading:loading[id], error:errors[id], formattedPrompt:formattedPrompts[id], showFormatted, tokens:tokenData?.[id], score:scores?.[id], isTop:topTechnique===id, rank:getRank(id), totalRanked });
 
   if (layout==="masonry") {
     const cols=[[],[]]; const heights=[0,0];
@@ -195,6 +210,7 @@ function AppInner() {
   const [saveCat, setSaveCat]           = useState("");
   const [showTemplates, setShowTemplates] = useState(false);
   const [toast, setToast]               = useState(null);
+  const [backendStatus, setBackendStatus] = useState("checking"); // checking | ready | sleeping
   const detectTimer                     = useRef(null);
   const templatesRef                    = useRef(null);
 
@@ -211,8 +227,21 @@ function AppInner() {
   useEffect(() => {
     loadFromStorage(STORAGE_KEYS.history).then(setHistory);
     loadFromStorage(STORAGE_KEYS.library).then(setLibrary);
-    // Auto-close sidebar on mobile
     if (window.innerWidth < 768) setSidebarOpen(false);
+    // Wake up backend and show status
+    const API_BASE = process.env.REACT_APP_API_URL || "http://localhost:5000";
+    const wake = async () => {
+      try {
+        const res = await fetch(`${API_BASE}/`, { signal: AbortSignal.timeout(8000) });
+        if (res.ok) { setBackendStatus("ready"); setTimeout(() => setBackendStatus("done"), 3000); }
+        else { setBackendStatus("sleeping"); }
+      } catch {
+        // Backend is sleeping — keep trying
+        setBackendStatus("sleeping");
+        setTimeout(wake, 5000);
+      }
+    };
+    wake();
   }, []);
 
   const notify = msg => { setToast(msg); setTimeout(()=>setToast(null), 2500); };
@@ -454,8 +483,21 @@ function AppInner() {
         </div>
       </header>
 
+      {/* Backend status banner */}
+      {backendStatus === "sleeping" && (
+        <div style={{ background:"#f59e0b", color:"#000", padding:"8px 16px", fontSize:"12px", fontFamily:"monospace", textAlign:"center", display:"flex", alignItems:"center", justifyContent:"center", gap:"8px" }}>
+          <span style={{ animation:"pf-spin 1s linear infinite", display:"inline-block" }}>⟳</span>
+          Backend is waking up — this takes 30-60 seconds on first visit. Please wait…
+        </div>
+      )}
+      {backendStatus === "ready" && (
+        <div style={{ background:"#00e5a0", color:"#000", padding:"6px 16px", fontSize:"11px", fontFamily:"monospace", textAlign:"center" }}>
+          ✓ Backend ready
+        </div>
+      )}
+
       {/* Body */}
-      <div style={{ display:"flex", height:"calc(100vh - 56px)", overflow:"hidden", position:"relative" }}>
+      <div style={{ display:"flex", height:backendStatus==="sleeping"?"calc(100vh - 56px - 36px)":backendStatus==="ready"?"calc(100vh - 56px - 28px)":"calc(100vh - 56px)", overflow:"hidden", position:"relative" }}>
         {/* Mobile overlay backdrop */}
         {sidebarOpen && <div onClick={()=>setSidebarOpen(false)} style={{ display: typeof window !== "undefined" && window.innerWidth < 768 ? "block" : "none", position:"fixed", inset:0, background:"rgba(0,0,0,0.4)", zIndex:90, top:"56px" }} />}
         <Sidebar open={sidebarOpen} selectedTechniques={selectedTechniques} onToggleTechnique={toggleTechnique} onSelectAll={selectAll} onClearAll={clearAll} temperature={temperature} setTemperature={setTemperature} maxTokens={maxTokens} setMaxTokens={setMaxTokens} role={role} setRole={setRole} examples={examples} setExamples={setExamples} showFormatted={showFormatted} setShowFormatted={setShowFormatted} customInstructions={customInstructions} setCustomInstructions={setCustomInstructions} customSystem={customSystem} setCustomSystem={setCustomSystem} ragDoc={ragDoc} setRagDoc={setRagDoc} model={model} setModel={setModel} t={t} />

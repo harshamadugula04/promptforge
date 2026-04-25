@@ -865,8 +865,9 @@ def score_response():
                 )},
                 {"role": "user", "content": judge}
             ],
-            temperature=0.1,
+            temperature=0.0,
             max_tokens=300,
+            seed=42,
         )
         raw = resp.choices[0].message.content.strip()
         if "```" in raw:

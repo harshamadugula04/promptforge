@@ -118,51 +118,96 @@ function ModalityBadge({ type, t }) {
   );
 }
 
-function ScoreBar({ score, t }) {
+// rank and label are passed from parent based on position among all scored cards
+function ScoreBar({ score, rank, totalRanked, t }) {
   const [showDetail, setShowDetail] = useState(false);
   if (!score) return null;
-  const color = score.overall >= 80 ? "#22c55e" : score.overall >= 60 ? "#f59e0b" : "#ef4444";
+
+  // Rank label — relative within this run only
+  const getRankInfo = () => {
+    if (!rank || !totalRanked) return null;
+    if (totalRanked === 1) return { label: "Only result", color: t.accent, bg: t.accentBg, border: t.accentBorder };
+    if (rank === 1) return { label: "Best", color: "#00e5a0", bg: "#00e5a018", border: "#00e5a040" };
+    if (rank === 2 && totalRanked >= 3) return { label: "Good", color: "#6366f1", bg: "#6366f118", border: "#6366f140" };
+    if (rank === totalRanked) return { label: "Weakest", color: "#f59e0b", bg: "#f59e0b18", border: "#f59e0b40" };
+    return { label: `#${rank} of ${totalRanked}`, color: t.textMuted, bg: t.surface2, border: t.border };
+  };
+
+  const rankInfo = getRankInfo();
 
   const dims = [
-    { key: "relevance",          label: "Relevance",   reason: score.dimensions?.relevance?.reasoning || score.relevance_reason },
-    { key: "accuracy",           label: "Accuracy",    reason: score.dimensions?.accuracy?.reasoning || "" },
-    { key: "depth",              label: "Depth",       reason: score.dimensions?.depth?.reasoning || score.depth_reason },
-    { key: "clarity",            label: "Clarity",     reason: score.dimensions?.clarity?.reasoning || score.clarity_reason },
-    { key: "technique_fidelity", label: "Technique",   reason: score.dimensions?.technique_fidelity?.reasoning || "" },
+    { key: "relevance",          label: "Relevance",  icon: "◎" },
+    { key: "depth",              label: "Depth",      icon: "◈" },
+    { key: "clarity",            label: "Clarity",    icon: "◻" },
+    { key: "accuracy",           label: "Accuracy",   icon: "◆" },
+    { key: "technique_fidelity", label: "Technique",  icon: "⟳" },
   ].filter(d => score[d.key] !== undefined);
+
+  // Convert score to qualitative label
+  const dimLabel = v => v >= 80 ? "Strong" : v >= 60 ? "Good" : "Weak";
+  const dimColor = v => v >= 80 ? "#00e5a0" : v >= 60 ? "#6366f1" : "#f59e0b";
 
   return (
     <div style={{ borderTop: `1px solid ${t.border}`, background: t.surface2 }}>
       {/* Summary row */}
       <div onClick={() => setShowDetail(v => !v)} style={{ padding: "8px 14px", cursor: "pointer", display: "flex", alignItems: "center", gap: "10px" }}>
-        <span style={{ fontSize: "10px", color: t.textMuted, fontFamily: "monospace", flexShrink: 0 }}>G-EVAL</span>
-        <div style={{ flex: 1, display: "flex", gap: "4px", alignItems: "center" }}>
-          {dims.map(({ key, label }) => score[key] !== undefined && (
-            <div key={key} style={{ flex: 1 }} title={`${label}: ${score[key]}/100`}>
-              <div style={{ height: "3px", background: t.border, borderRadius: "2px", overflow: "hidden" }}>
-                <div style={{ height: "100%", width: `${score[key]}%`, background: score[key] >= 80 ? "#22c55e" : score[key] >= 60 ? "#f59e0b" : "#ef4444", borderRadius: "2px", transition: "width 0.8s ease" }} />
+        <span style={{ fontSize: "10px", color: t.textMuted, fontFamily: "monospace", flexShrink: 0 }}>QUALITY</span>
+        {/* Dimension bars — no numbers */}
+        <div style={{ flex: 1, display: "flex", gap: "3px", alignItems: "center" }}>
+          {dims.map(({ key, label }) => (
+            <div key={key} style={{ flex: 1 }} title={`${label}: ${dimLabel(score[key])}`}>
+              <div style={{ height: "4px", background: t.border, borderRadius: "2px", overflow: "hidden" }}>
+                <div style={{ height: "100%", width: `${score[key]}%`, background: dimColor(score[key]), borderRadius: "2px", transition: "width 0.8s ease" }} />
               </div>
             </div>
           ))}
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: "4px", flexShrink: 0 }}>
-          <span style={{ fontSize: "15px", fontWeight: 700, color, fontFamily: "monospace", lineHeight: 1 }}>{score.overall}</span>
-          <span style={{ fontSize: "10px", color: t.textDimmer }}>/100</span>
-          <span style={{ fontSize: "10px", color: t.textDimmer, marginLeft: "2px" }}>{showDetail ? "▲" : "▼"}</span>
-        </div>
+        {/* Rank badge instead of number */}
+        {rankInfo && (
+          <div style={{ display: "flex", alignItems: "center", gap: "5px", flexShrink: 0 }}>
+            <span style={{ fontSize: "11px", fontWeight: 700, color: rankInfo.color, background: rankInfo.bg, border: `1px solid ${rankInfo.border}`, borderRadius: "5px", padding: "2px 8px", fontFamily: "'Syne',sans-serif" }}>
+              {rankInfo.label}
+            </span>
+            <span style={{ fontSize: "10px", color: t.textDimmer }}>{showDetail ? "▲" : "▼"}</span>
+          </div>
+        )}
       </div>
 
-      {/* Expanded detail */}
+      {/* Expanded detail — qualitative labels, no numbers */}
       {showDetail && (
-        <div style={{ padding: "0 14px 10px", borderTop: `1px solid ${t.border}` }}>
-          {dims.map(({ key, label, reason }) => score[key] !== undefined && (
-            <div key={key} style={{ marginTop: "6px" }} title={reason || ""}>
-              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "2px" }}>
-                <span style={{ fontSize: "10px", color: t.textDim, fontFamily: "monospace" }}>{label}</span>
-                <span style={{ fontSize: "10px", color: score[key] >= 80 ? "#22c55e" : score[key] >= 60 ? "#f59e0b" : "#ef4444", fontFamily: "monospace", fontWeight: 600 }}>{score[key]}</span>
+        <div style={{ padding: "10px 14px", borderTop: `1px solid ${t.border}` }}>
+          {/* Strengths and weaknesses */}
+          {score.strength && (
+            <div style={{ marginBottom: "8px", display: "flex", gap: "6px", alignItems: "flex-start" }}>
+              <span style={{ fontSize: "11px", color: "#00e5a0", flexShrink: 0 }}>✓</span>
+              <span style={{ fontSize: "11px", color: t.textMuted, lineHeight: "1.5" }}>{score.strength}</span>
+            </div>
+          )}
+          {score.verdict && (
+            <div style={{ marginBottom: "10px", display: "flex", gap: "6px", alignItems: "flex-start" }}>
+              <span style={{ fontSize: "11px", color: "#f59e0b", flexShrink: 0 }}>△</span>
+              <span style={{ fontSize: "11px", color: t.textMuted, lineHeight: "1.5" }}>{score.verdict}</span>
+            </div>
+          )}
+          {/* Dimension qualitative breakdown */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "5px" }}>
+            {dims.map(({ key, label, icon }) => (
+              <div key={key} style={{ display: "flex", alignItems: "center", gap: "6px", padding: "4px 8px", background: t.surface, borderRadius: "6px", border: `1px solid ${t.border}` }}>
+                <span style={{ fontSize: "10px", color: t.textDim }}>{icon}</span>
+                <span style={{ fontSize: "10px", color: t.textDim, fontFamily: "monospace", flex: 1 }}>{label}</span>
+                <span style={{ fontSize: "10px", fontWeight: 600, color: dimColor(score[key]), fontFamily: "monospace" }}>{dimLabel(score[key])}</span>
               </div>
-              <div style={{ height: "4px", background: t.border, borderRadius: "2px", overflow: "hidden" }}>
-                <div style={{ height: "100%", width: `${score[key]}%`, background: score[key] >= 80 ? "#22c55e" : score[key] >= 60 ? "#f59e0b" : "#ef4444", borderRadius: "2px", transition: "width 0.6s ease" }} />
+            ))}
+          </div>
+          <div style={{ marginTop: "8px", fontSize: "10px", color: t.textDimmer, fontFamily: "monospace", textAlign: "center" }}>
+            Rankings are relative to this run only
+          </div>
+        </div>
+      )}
+    </div>
+  );
+
+  return null; // unreachable but satisfies linter
               </div>
               {reason && <div style={{ fontSize: "10px", color: t.textDimmer, marginTop: "2px", lineHeight: "1.4" }}>{reason}</div>}
             </div>
@@ -203,7 +248,7 @@ export function MasonryCard(props)      { return <UnifiedCard {...props} layout=
 export function EqualHeightCard(props)  { return <UnifiedCard {...props} layout="equal" />; }
 export function AccordionCard(props)    { return <UnifiedCard {...props} layout="accordion" />; }
 
-function UnifiedCard({ technique, response, responseType, isLoading, error, formattedPrompt, showFormatted, layout, cardHeight, maxWords, isExpanded, onToggle, tokens, score, isTop }) {
+function UnifiedCard({ technique, response, responseType, isLoading, error, formattedPrompt, showFormatted, layout, cardHeight, maxWords, isExpanded, onToggle, tokens, score, isTop, rank, totalRanked }) {
   const tech = TECHNIQUES[technique];
   const [copied, setCopied] = useState(false);
   const { dark } = useTheme();
@@ -261,7 +306,7 @@ function UnifiedCard({ technique, response, responseType, isLoading, error, form
         {isExpanded && (
           <div style={{ borderTop: `1px solid ${t.border}` }}>
             <div style={{ padding: "14px 16px" }}>{bodyContent}</div>
-            <ScoreBar score={score} t={t} />
+            <ScoreBar score={score} rank={rank} totalRanked={totalRanked} t={t} />
             {showFooter && <div style={{ padding: "8px 16px", borderTop: `1px solid ${t.border}`, background: t.surface2 }}><CardFooter tech={tech} t={t} words={words} copied={copied} onCopy={copy} readTime={readTime} tokens={tokens} /></div>}
           </div>
         )}
@@ -306,7 +351,7 @@ function UnifiedCard({ technique, response, responseType, isLoading, error, form
         </div>
       )}
 
-      <ScoreBar score={score} t={t} />
+      <ScoreBar score={score} rank={rank} totalRanked={totalRanked} t={t} />
       {showFooter && (
         <div style={{ padding: "8px 14px", borderTop: `1px solid ${t.border}`, background: t.surface2, flexShrink: 0 }}>
           <CardFooter tech={tech} t={t} words={words} copied={copied} onCopy={copy} readTime={readTime} tokens={tokens} />
